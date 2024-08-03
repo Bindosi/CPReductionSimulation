@@ -1,12 +1,12 @@
 clear; clc;
 deltaF        = 15000;
-Mod_Order     = 2;           % BPSK (1), QPSK(2), 8-PSK(3), 16-QAM(4), 64-QAM(6)         
+Mod_Order     = 4;           % BPSK (1), QPSK(2), 8-PSK(3), 16-QAM(4), 64-QAM(6)         
 N_fft         = 64;          % FFT size
 Symbol_Period = 1/(deltaF*N_fft);
 
-NumSym    = 10;        % no of realization, how many ofdm symbols do we transmit
+NumSym    = 1000;        % no of realization, how many ofdm symbols do we transmit
 
-SNR                 = (0:2:30);
+SNR                 = (-30:2:20);
 BER_n_1             = zeros(1,length(SNR));
 BER_n_2             = zeros(1,length(SNR));
 BER_p_1             = zeros(1,length(SNR));
@@ -22,8 +22,8 @@ PowerdBCluser1  =  [-1 -7 -17 -21 -25];  % Cluster 1 tap power profile 'dB'
 DelayCluster1   =  [0 2 5 6 8];          % Cluster 2 delay 'sample'
 PowerdBCluser2  =  [-3 -9 -19 -25 -31];  % Cluster 1 tap power profile 'dB'
 DelayCluster2   =  [8 9 11 13 14];       % Cluster 2 delay 'sample'
-VR1_Antennas    =   32;
-VR2_Antennas    =   22;
+VR1_Antennas    =   36;
+VR2_Antennas    =   28;
 
 [H_cir_1, Lch_1, H_cir_2, Lch_2, Lch_Combined]    =  Channel(PowerdBCluser1,PowerdBCluser2,DelayCluster1,DelayCluster2,NumSym,VR1_Antennas,VR2_Antennas);
 
@@ -70,25 +70,24 @@ y_normal_1    =   zeros(N_sym, NumSym,VR1_Antennas);
 y_normal_2    =   zeros(N_sym, NumSym,VR2_Antennas);
 
 % building the received symbols matrix for normal CP
-   H_temp_1       =   zeros(N_sym + Lch_1 , N_sym, VR1_Antennas);  
-   H_temp_1_p     =   zeros(N_sym_proposed + Lch_1, N_sym_proposed,VR1_Antennas);
+H_temp_1        =   zeros(N_sym + Lch_1, N_sym,VR1_Antennas);
+H_temp_1_p      =   zeros(N_sym_proposed + Lch_1, N_sym_proposed,VR1_Antennas);
 
-    for sym       =   1:NumSym
-        for ant   =   1:VR1_Antennas
-            for s =   1:N_sym
-                H_temp_1(s:s + Lch_1-1, s,ant)        = H_cir_1(:,sym,ant);
+for sym          =   1:NumSym
+    for ant = 1:VR1_Antennas
+            for samp =   1:N_sym
+                H_temp_1(samp:samp + Lch_1-1,samp,ant)            = H_cir_1(:,sym,ant);
             end
-             for sp =   1:N_sym_proposed
-                H_temp_1_p(sp:sp + Lch_1-1,sp,ant)    = H_cir_1(:,sym,ant);
+             for sampp =   1:N_sym_proposed
+                H_temp_1_p(sampp:sampp + Lch_1-1,sampp,ant)       = H_cir_1(:,sym,ant);
             end
-        end
-        H_toep_1                        = H_temp_1(1:N_sym,:,:);           % Channel Toeplitz Matrix
-        H_toep_1_p                      = H_temp_1_p(1:N_sym_proposed,:,:);% Channel Toeplitz Matrix   
-        
-         
-        y_normal_1(:,sym,ant)           = H_toep_1(:,:,ant)   * x_cp_Normal(:,sym); % Multiplying xcp sym's row and htoep creating TX OFDM symbols 
-        y_proposed_1(:,sym,ant)         = H_toep_1_p(:,:,ant) * x_cp_Proposed(:,sym);
+    
+        H_toep_1_p                   = H_temp_1_p(1:N_sym_proposed,:,:);               % Channel Toeplitz Matrix
+        H_toep_1                     = H_temp_1(1:N_sym,:,:);                          % Channel Toeplitz Matrix
+        y_proposed_1(:,sym,ant)      = H_toep_1_p(:,:,ant) * x_cp_Proposed(:,sym); 
+        y_normal_1(:,sym,ant)        = H_toep_1(:,:,ant)   * x_cp_Normal(:,sym); % Multiplying xcp sym's row and htoep creating TX OFDM symbols
     end
+end
    
 
 % building the received symbols matrix for normal and proposed CP
@@ -158,8 +157,8 @@ for k=1:length(SNR)
     mrcY_p_2            = sum(mrcY_p_2_3D,3);
 
 
-    Y_normal_combined   = mrcY_n_1 + mrcY_n_2;
-    Y_proposed_combined = mrcY_p_1 + mrcY_p_2;
+    Y_normal_combined   = 0.5*(mrcY_n_1 + mrcY_n_2);
+    Y_proposed_combined = 0.5*(mrcY_p_1 + mrcY_p_2);
 
     Y_demodSyms_n_1     = reshape(mrcY_n_1,1,N_fft*NumSym);
     Y_demodSyms_p_1     = reshape(mrcY_p_1,1,N_fft*NumSym);
@@ -193,13 +192,13 @@ end
 figure
     semilogy(SNR,BER_n_1,'-','Color','g','LineWidth',1.5)
     hold on
-    semilogy(SNR,BER_n_2,'*','Color','g','LineWidth',1.5)
+    semilogy(SNR,BER_n_2,'-*','Color','g','LineWidth',1.5)
     hold on
     semilogy(SNR,BER_p_1,'-','Color','r','LineWidth',1.5)
     hold on
-    semilogy(SNR,BER_p_2,'*','Color','r','LineWidth',1.5)
+    semilogy(SNR,BER_p_2,'-*','Color','r','LineWidth',1.5)
     hold on
-    semilogy(SNR,BER_nc,'o','LineWidth',1.5)
+    semilogy(SNR,BER_nc,'-o','LineWidth',1.5)
     hold on
     semilogy(SNR,BER_pc,'--','LineWidth',1.5)
    
@@ -211,7 +210,7 @@ figure
 figure
     semilogy(SNR,Optimize_Normal,'-','Color','g','LineWidth',1.5)
     hold on
-    semilogy(SNR,Optimize_Proposed,'*','Color','r','LineWidth',1.5)
+    semilogy(SNR,Optimize_Proposed,'-*','Color','r','LineWidth',1.5)
     
     legend('Normal','Proposed','Location', 'SouthEast')
     
